@@ -17,7 +17,7 @@ ARG KEYCLOAK_DIST=https://github.com/keycloak/keycloak/releases/download/$KEYCLO
 
 USER root
 
-RUN microdnf update -y && microdnf install -y glibc-langpack-en gzip hostname java-11-openjdk-headless openssl tar which && microdnf clean all
+RUN microdnf update -y && microdnf install -y glibc-langpack-en gzip hostname java-11-openjdk-headless tzdata-java openssl tar which && microdnf clean all
 
 ADD tools /opt/jboss/tools
 RUN /opt/jboss/tools/build-keycloak.sh
