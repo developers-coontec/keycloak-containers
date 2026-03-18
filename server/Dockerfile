@@ -4,7 +4,7 @@ ENV KEYCLOAK_VERSION 14.0.0
 ENV JDBC_POSTGRES_VERSION 42.2.5
 ENV JDBC_MYSQL_VERSION 8.0.22
 ENV JDBC_MARIADB_VERSION 2.5.4
-ENV JDBC_MSSQL_VERSION 11.2.0.jre17
+ENV JDBC_MSSQL_VERSION 8.2.2.jre11
 
 ENV LAUNCH_JBOSS_IN_BACKGROUND 1
 ENV PROXY_ADDRESS_FORWARDING false
@@ -17,7 +17,7 @@ ARG KEYCLOAK_DIST=https://github.com/keycloak/keycloak/releases/download/$KEYCLO
 
 USER root
 
-RUN microdnf update -y && microdnf install -y glibc-langpack-en gzip hostname java-17-openjdk-headless tzdata-java openssl tar which && microdnf clean all
+RUN microdnf update -y && microdnf install -y glibc-langpack-en gzip hostname java-11-openjdk-headless tzdata-java openssl tar which && microdnf clean all
 
 ADD tools /opt/jboss/tools
 RUN /opt/jboss/tools/build-keycloak.sh

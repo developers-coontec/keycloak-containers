@@ -27,7 +27,6 @@ if [ "$GIT_REPO" != "" ]; then
     MASTER_HEAD=`git log -n1 --format="%H"`
     echo "Keycloak from [build]: $GIT_REPO/$GIT_BRANCH/commit/$MASTER_HEAD"
 
-    export MAVEN_OPTS="--add-opens java.xml/com.sun.org.apache.xerces.internal.parsers=ALL-UNNAMED"
     $M2_HOME/bin/mvn -Pdistribution -pl distribution/server-dist -am -Dmaven.test.skip clean install
 
     cd /opt/jboss
