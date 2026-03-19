@@ -9,13 +9,7 @@ if [ "$GIT_REPO" != "" ]; then
         GIT_BRANCH="master"
     fi
 
-    # Install Git
-    microdnf install -y git
-
-    # Install Maven
-    cd /opt/jboss
-    curl -L https://archive.apache.org/dist/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz | tar xz
-    mv apache-maven-3.8.8 /opt/jboss/maven
+    # Git and Maven are pre-installed in Dockerfile
     export M2_HOME=/opt/jboss/maven
 
     # Clone repository
@@ -33,17 +27,16 @@ if [ "$GIT_REPO" != "" ]; then
 
     tar xfz /opt/jboss/keycloak-source/distribution/server-dist/target/keycloak-*.tar.gz
 
-    # Remove temporary files
+    # Remove temporary files (Maven cache ~/.m2 is preserved via BuildKit cache mount)
     rm -rf /opt/jboss/maven
     rm -rf /opt/jboss/keycloak-source
-    rm -rf $HOME/.m2/repository
 
     mv /opt/jboss/keycloak-* /opt/jboss/keycloak
 else
     echo "Keycloak from [download]: $KEYCLOAK_DIST"
 
     cd /opt/jboss/
-    curl -L $KEYCLOAK_DIST | tar zx
+    curl -fL $KEYCLOAK_DIST | tar zx
     mv /opt/jboss/keycloak-* /opt/jboss/keycloak
 fi
 
@@ -51,20 +44,43 @@ fi
 # Create DB modules #
 #####################
 
+# Helper: copy from cache if exists, otherwise download and store in cache
+# /opt/jboss/jdbc-cache is persisted on the host via BuildKit --mount=type=cache
+JDBC_CACHE_DIR=/opt/jboss/jdbc-cache
+mkdir -p $JDBC_CACHE_DIR
+
+download_jdbc() {
+    local url=$1
+    local dest=$2
+    local cache_file="$JDBC_CACHE_DIR/$(basename $dest)"
+
+    if [ -f "$cache_file" ]; then
+        echo "Using cached JDBC: $(basename $dest)"
+        cp "$cache_file" "$dest"
+    else
+        echo "Downloading JDBC: $url"
+        curl -fL "$url" -o "$dest"
+        cp "$dest" "$cache_file"
+    fi
+}
+
 mkdir -p /opt/jboss/keycloak/modules/system/layers/base/com/mysql/jdbc/main
 cd /opt/jboss/keycloak/modules/system/layers/base/com/mysql/jdbc/main
-curl -O https://repo1.maven.org/maven2/mysql/mysql-connector-java/$JDBC_MYSQL_VERSION/mysql-connector-java-$JDBC_MYSQL_VERSION.jar
+download_jdbc "https://repo1.maven.org/maven2/mysql/mysql-connector-java/$JDBC_MYSQL_VERSION/mysql-connector-java-$JDBC_MYSQL_VERSION.jar" \
+    "mysql-connector-java-$JDBC_MYSQL_VERSION.jar"
 cp /opt/jboss/tools/databases/mysql/module.xml .
 sed "s/JDBC_MYSQL_VERSION/$JDBC_MYSQL_VERSION/" /opt/jboss/tools/databases/mysql/module.xml > module.xml
 
 mkdir -p /opt/jboss/keycloak/modules/system/layers/base/org/postgresql/jdbc/main
 cd /opt/jboss/keycloak/modules/system/layers/base/org/postgresql/jdbc/main
-curl -L https://repo1.maven.org/maven2/org/postgresql/postgresql/$JDBC_POSTGRES_VERSION/postgresql-$JDBC_POSTGRES_VERSION.jar > postgres-jdbc.jar
+download_jdbc "https://repo1.maven.org/maven2/org/postgresql/postgresql/$JDBC_POSTGRES_VERSION/postgresql-$JDBC_POSTGRES_VERSION.jar" \
+    "postgres-jdbc.jar"
 cp /opt/jboss/tools/databases/postgres/module.xml .
 
 mkdir -p /opt/jboss/keycloak/modules/system/layers/base/org/mariadb/jdbc/main
 cd /opt/jboss/keycloak/modules/system/layers/base/org/mariadb/jdbc/main
-curl -L https://repo1.maven.org/maven2/org/mariadb/jdbc/mariadb-java-client/$JDBC_MARIADB_VERSION/mariadb-java-client-$JDBC_MARIADB_VERSION.jar > mariadb-jdbc.jar
+download_jdbc "https://repo1.maven.org/maven2/org/mariadb/jdbc/mariadb-java-client/$JDBC_MARIADB_VERSION/mariadb-java-client-$JDBC_MARIADB_VERSION.jar" \
+    "mariadb-jdbc.jar"
 cp /opt/jboss/tools/databases/mariadb/module.xml .
 
 mkdir -p /opt/jboss/keycloak/modules/system/layers/base/com/oracle/jdbc/main
@@ -73,7 +89,8 @@ cp /opt/jboss/tools/databases/oracle/module.xml .
 
 mkdir -p /opt/jboss/keycloak/modules/system/layers/keycloak/com/microsoft/sqlserver/jdbc/main
 cd /opt/jboss/keycloak/modules/system/layers/keycloak/com/microsoft/sqlserver/jdbc/main
-curl -L https://repo1.maven.org/maven2/com/microsoft/sqlserver/mssql-jdbc/$JDBC_MSSQL_VERSION/mssql-jdbc-$JDBC_MSSQL_VERSION.jar > mssql-jdbc.jar
+download_jdbc "https://repo1.maven.org/maven2/com/microsoft/sqlserver/mssql-jdbc/$JDBC_MSSQL_VERSION/mssql-jdbc-$JDBC_MSSQL_VERSION.jar" \
+    "mssql-jdbc.jar"
 cp /opt/jboss/tools/databases/mssql/module.xml .
 
 ######################
