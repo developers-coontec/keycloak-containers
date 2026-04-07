@@ -29,6 +29,8 @@ ARG KEYCLOAK_DIST=https://github.com/keycloak/keycloak/releases/download/$KEYCLO
 
 ADD tools /opt/jboss/tools
 
+ARG CACHE_BUST
+
 # --mount=type=cache: 빌드 컨테이너 밖 호스트에 캐시 유지 (빌드마다 재다운로드 없음)
 RUN --mount=type=cache,target=/root/.m2,sharing=locked \
     --mount=type=cache,target=/opt/jboss/jdbc-cache,sharing=locked \
